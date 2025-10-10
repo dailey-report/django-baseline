@@ -1,0 +1,130 @@
+#
+#  bashrc is executed for interactive shells that are not a login shell
+#
+########
+
+# If not running interactively, don't do anything
+[ -z "$PS1" ] && return
+
+BASHPROFUN=Yes
+
+# source the system wide bashrc if it exists
+if [ -e /etc/bash.bashrc ] ; then
+  source /etc/bash.bashrc
+elif [ -e /etc/bashrc ] ; then
+  source /etc/bashrc
+fi
+
+
+## Shell Options
+#  #############
+
+# Don't wait for job termination notification
+set -o notify
+
+# If this is an xterm set the title to user@host:dir
+case "$TERM" in
+xterm*|rxvt*)
+    PS1="\[\e]0;${debian_chroot:+($debian_chroot)}\u@\h: \w\a\]$PS1"
+    ;;
+*)
+    ;;
+esac
+
+# use case insensitive filename globbing
+shopt -s nocaseglob
+# check the window size after each command and, if necessary,
+# update the values of LINES and COLUMNS.
+shopt -s checkwinsize
+
+# use vi mode on the command line
+set -o vi
+# and vim as default editor
+export EDITOR=/usr/bin/vim
+export VISUAL=/usr/bin/vim
+
+#  some builtins for prompt: \t time \d date \s shell \W lastElementOfPWD
+#    \u username \# commandNumber \! historyNumber
+export PS1='\[\033[01;32m\]container-\h\[\033[01;34m\] \w \! \$\[\033[00m\] '
+
+
+## Aliases
+#  #######
+
+# Default to human readable figures for disk statistics commands
+alias df='df -h'
+alias du='du -h'
+
+# show process IDs with jobs
+alias jobs='jobs -l'
+
+# Some shortcuts for different directory listings
+alias la='ls -A'    # all but . and ..
+alias l='ls -CF'
+alias ls='ls -hF --color=always'    # human-friendly, /-for-dirs, colors
+alias ll='ls -lht --color=always'
+# long list clean
+alias llc='/bin/ls -l --group-directories-first --human-readable --color'
+
+# MikeD now
+alias mnow='date --universal "+%H:%M:%S %d%b%Y" | sed "s/./\U&/g"'
+# file stat / touch now
+alias stnow='date "+%Y-%m-%d %H:%M:%S.%9N %z"'
+# kibana / elastic search now
+alias know='date "+%b %d, %Y @ %H:%M:%S.%3N"'
+
+alias less='less -r'    # raw control characters
+# make less more friendly for non-text input files, see lesspipe(1)
+[ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
+
+alias grep='grep -s --color=auto'      # supress errors, matched token in colour
+alias egrep='egrep --color=auto'
+alias egrepr='egrep --recursive --line-number'
+
+alias e='exit'
+
+
+## Functions
+#  #########
+
+# list directories only
+lld() {
+  ll $1 | grep ^d --color=never
+}
+
+# pretty print json
+jcat() {
+  cat "$1" | python -m json.tool
+}
+
+# binary to decimal
+b2d() {
+  echo "$((2#$1))"
+}
+
+# decimal to binary
+d2b() {
+  echo "obase=2;$1" | bc;
+}
+
+# binary to hex
+b2h() {
+  printf '%x\n' "$((2#$1))"
+}
+
+# hex to binary
+h2b() {
+  echo "obase=2; ibase=16; ${1^^}" | bc;
+}
+
+## Display Information on Login
+#  ################################
+tty -s && echo;
+# who's on and what are they doing?
+#   (also runs uptime)
+tty -s && w
+tty -s && echo;
+# os info
+tty -s && echo $OSTYPE
+tty -s && echo $HOSTTYPE
+tty -s && uname -a

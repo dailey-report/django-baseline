@@ -1,0 +1,8 @@
+# override is for sandbox only
+compose.overide.yml
+
+# file based logging
+logs/
+
+# binary artifacts of code coverage tool
+.coverage

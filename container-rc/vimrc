@@ -1,0 +1,176 @@
+"  MikeD
+"
+filetype on " detect the type of file
+filetype plugin on " load filetype plugins
+filetype plugin indent on
+set viminfo+=! " make sure it can save viminfo
+set history=7777 " How many lines of history to remember
+set isk+=_,$,@,%,# " none of these should be word dividers, so make them not be
+syntax on " syntax highlighting on
+set noerrorbells " don't make noise
+set so=3 " Keep 3 lines (top/bottom) for scope
+set relativenumber  " show relative line numbers
+set number  " show absolute line number for current line (when used after relativenumber)
+" enable line numbers for file explorer too
+let g:netrw_bufsettings = 'noma nomod number nobl nowrap ro'
+set showmatch " show matching brackets
+set mat=5 " how many tenths of a second to blink matching brackets for
+set hlsearch " highlight searched for phrases
+set incsearch " highlight as you type you search phrase
+" ignore case in searches
+set ignorecase
+" overide ignorecase if upper case used in search string
+set smartcase
+set autochdir
+" what to show for :set list
+set listchars=tab:\|\ ,trail:.,extends:>,precedes:<,eol:$
+
+" make illegal whitespace stand out like a sore thumb
+"   http://vim.wikia.com/wiki/Highlight_unwanted_spaces
+highlight IllegalWhitespace ctermbg=red
+match IllegalWhitespace /\t\|\s\+\%#\@<!$/
+" highlight immediately after leaving insert mode
+autocmd BufWinEnter * match IllegalWhitespace /\t\|\s\+$/
+autocmd InsertEnter * match IllegalWhitespace /\t\|\s\+\%#\@<!$/
+autocmd InsertLeave * match IllegalWhitespace /\t\|\s\+$/
+"autocmd InsertLeave * redraw!
+autocmd BufWinLeave * call clearmatches()
+
+"   ## status line settings ##
+" laststatus and ruler only effect output of CTRL-G when statusline is set
+set laststatus=2 " always show the status line
+set ruler " Always show current positions along the bottom
+" display the current mode and partially-typed commands in the status line:
+set showmode
+set showcmd
+" use "[RO]" for "[readonly]" to save space in the message line:
+set shortmess+=r
+
+" relative file path, read-only flag, modified flag
+set statusline=%F\ %r\ %m\
+" right justified line number, column number
+set statusline+=%=%l,\ %c\ %9P
+
+set whichwrap+=<,>,h,l  " backspace and cursor keys wrap too
+
+"highlight current line
+"  cterm=none to avoid underline
+"  set bg color with ctermbg
+"  to avoid un-readable text that is similar to the background color, set
+"    foreground color with ctermfg=colorname
+"hi CursorLine cterm=none ctermbg=darkred
+"hi CursorLine cterm=none ctermbg=darkgrey
+hi CursorLine cterm=none ctermbg=236
+"  turn on
+set cursorline
+" current line highlighting on window in focus only
+autocmd WinEnter * setlocal cursorline
+autocmd WinLeave * setlocal nocursorline
+" disable current line highlighting in insert mode
+:autocmd InsertEnter * set nocursorline
+:autocmd InsertLeave * set cursorline
+
+" do not clear screen on exit
+set t_ti= t_te=
+
+autocmd BufReadPost *
+      \ if ! exists("g:leave_my_cursor_position_alone") |
+      \     if line("'\"") > 0 && line ("'\"") <= line("$") |
+      \         exe "normal g'\"" |
+      \     endif |
+      \ endif
+
+" turn off 'safe write' so watchers will re-compile on save
+set backupcopy=yes
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" Text Formatting/Layout
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"set fo=tcrqn " See Help (complex)
+"set autoindent
+"set si " smartindent
+"set cindent " do c-style indenting
+set tabstop=2
+set softtabstop=2
+set shiftwidth=2
+"set shiftround
+set expandtab " expand tabs into spaces
+"set nowrap " do not wrap lines
+" auto command for forcing wrap in diff mode
+au VimEnter * if &diff | execute 'windo set wrap' | endif
+
+""""  Language Specific Formatting and Behavior  """"
+"" C ""
+autocmd FileType c setlocal shiftwidth=4 tabstop=4 softtabstop=4 expandtab autoindent formatoptions-=r
+
+"" javascript ""
+autocmd FileType javascript setlocal shiftwidth=4 tabstop=4 softtabstop=4 expandtab autoindent formatoptions-=r
+
+"" python ""
+autocmd FileType python setlocal shiftwidth=4 tabstop=4 softtabstop=4 expandtab autoindent formatoptions-=r
+
+"" go ""
+autocmd FileType go setlocal shiftwidth=4 tabstop=8 softtabstop=4 expandtab autoindent formatoptions-=r
+
+"" html ""
+autocmd FileType html setlocal shiftwidth=2 tabstop=2 softtabstop=2 expandtab formatoptions-=r
+
+"" other various languages :) ""
+autocmd FileType ruby setlocal shiftwidth=4 tabstop=4 softtabstop=4 expandtab formatoptions-=r
+
+autocmd FileType make setlocal shiftwidth=4 tabstop=4 softtabstop=4 noexpandtab formatoptions-=r
+"  16oct2017 -- trying to not highlight tabs here, something's broken
+" clear all previous matching defs
+autocmd FileType make match none
+" makefile needs a tab for command line entries so don't highlight
+autocmd FileType make match IllegalWhitespace /\s\+\%#\@<!$/
+
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" Autocommands
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"autocmd BufEnter * :syntax sync fromstart " ensure every file does syntax highlighting (full)
+
+"spell check for text files
+autocmd BufRead *.txt setlocal spell spelllang=en_us textwidth=80 formatoptions+=tanl
+"prevent spell check from highlighting words that are not capitalized (not working!)
+syn match myExCapitalWords +\<\w*[A-Z]\K*\>+ contains=@NoSpell
+" alternatively, and more lienient:
+"syn match myExCapitalWords +\<\w*[A-Z]\K*\>\|'s+ contains=@NoSpell
+" change highlight color to be more gentle
+hi SpellBad ctermbg=017
+
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" MikeD mappings
+"   http://vimdoc.sourceforge.net/htmldoc/usr_40.html#40.1
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" change quote to apostrophe
+map <F2> :s/"/'/g<CR>:noh<CR>
+" change apostrophe to quote
+map <F3> :s/'/"/g<CR>:noh<CR>
+" force redraw of screen (b/c i think terminator is re-mapping CTRL-L)
+map <F5> :redraw!<CR>
+" run isort check on current file
+nmap <F6> :!isort --check --diff %<CR>
+" toggle syntastic mode active / passive
+map <F9> :SyntasticToggleMode<CR>
+" replace current word with unnamed paste register
+nmap <silent> cp "_cw<C-R>"<Esc>
+"split navigations
+nnoremap <C-J> <C-W><C-J>
+nnoremap <C-K> <C-W><C-K>
+nnoremap <C-L> <C-W><C-L>
+nnoremap <C-H> <C-W><C-H>
+
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" Tools and Plugins
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" Python
+let g:syntastic_python_checkers = ['flake8']
+let g:flake8_show_in_gutter = 1
+let g:flake8_quickfix_height = 7
+
+" ## ctags ##
+set tags=./tags,tags;~

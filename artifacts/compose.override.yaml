@@ -1,0 +1,25 @@
+name: baseline
+
+# services are prefixed with [PROJECT_NAME]_ where PROJECT_NAME = $PWD
+# services can communicate with each other using hostname == [PROJECT_NAME]_[SERVICE]
+#   examples: baseline_baseline, baseline_baseline-postgres, baseline_baseline-postgres:5432
+#
+# default network is [PROJECT_NAME]_default
+# images have access to internet
+# accessing images from host requires explicit port opening
+# it's good practice for services to listen on 0.0.0.0
+
+services:
+  baseline-postgres:
+    # this allows access from host
+    ports:
+      # only expose ports to loopback interface
+      - 127.0.0.1:5432:5432
+  baseline:
+    ports:
+      # only expose ports to loopback interface
+      - 127.0.0.1:8000:8000
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - IS_DEV=true
+      - ALLOWED_HOSTS=0.0.0.0,127.0.0.1

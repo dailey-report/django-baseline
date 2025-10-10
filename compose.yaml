@@ -1,0 +1,30 @@
+name: baseline
+
+services:
+  baseline-postgres:
+    image: "baseline-postgres"
+    # make sure pg is running before dependent services can run
+    healthcheck:
+      test: [ "CMD", "pg_isready", "--quiet", "--dbname", "baseline", "--username", "baseline" ]
+      timeout: 45s
+      interval: 10s
+      retries: 10
+    restart: always
+    environment:
+     # - POSTGRES_HOST_AUTH_METHOD=trust
+     - POSTGRES_DB=baseline
+     - POSTGRES_USER=baseline
+     - POSTGRES_PASSWORD=please-change-this-password
+    volumes:
+      - postgres_data_baseline:/var/lib/postgresql/data/
+
+  baseline:
+    build: .
+    command: /opt/manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./django_root:/opt
+    depends_on:
+      - baseline-postgres
+
+volumes:
+  postgres_data_baseline:

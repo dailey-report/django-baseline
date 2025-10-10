@@ -1,0 +1,25 @@
+# pip requirements for new django projects, using newest versions available.
+# for production, freeze to required versions preserving comments and order:
+# python -m pip freeze --requirement requirements.outline >requirements.txt
+
+# django
+Django
+djangorestframework
+django-cors-headers
+django-environ
+drf-standardized-errors
+# postgres for python with django
+psycopg
+# REST implementation of Django authentication system
+#djoser
+
+# operational libraries
+requests
+
+# development tools
+django-extensions
+ipython
+coverage
+factory_boy
+# for django-extensions GraphViz model visualization
+pygraphviz
