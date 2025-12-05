@@ -1,5 +1,5 @@
 # override is for sandbox only
-compose.overide.yml
+compose.override.yaml
 
 # file based logging
 logs/
