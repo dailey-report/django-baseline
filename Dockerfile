@@ -15,7 +15,8 @@ RUN set -eux; \
 RUN set -eux; \
     apt install --yes --no-install-recommends python3-dev libpq-dev;
 
-# for django-extensions GraphViz model visualization
+# for django-extensions GraphViz model visualization, this is a prerequisite of
+# pygraphviz installed by pip from requirements.txt
 RUN set -eux; \
     apt install --yes --no-install-recommends graphviz graphviz-dev;
 
