@@ -25,6 +25,11 @@ COPY artifacts/requirements.outline ./requirements.txt
 RUN set -eux; \
     python -m pip install --requirement requirements.txt;
 
+# assuming ipython is installed in requirements.txt,
+# find the installed ultratb.py and patch it for readable error highlighting
+RUN ULTRATB_PATH="$(python3 -c 'import IPython.core.ultratb,inspect,os; print(os.path.abspath(inspect.getfile(IPython.core.ultratb)))')" \
+    && sed -i 's/tb_highlight *= *"bg:ansiyellow"/tb_highlight = "bg:ansired"/' "$ULTRATB_PATH"
+
 # environment
 COPY container-rc/bashrc /root/.bashrc
 COPY container-rc/inputrc /root/.inputrc
