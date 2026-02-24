@@ -30,14 +30,27 @@ RUN set -eux; \
 RUN ULTRATB_PATH="$(python3 -c 'import IPython.core.ultratb,inspect,os; print(os.path.abspath(inspect.getfile(IPython.core.ultratb)))')" \
     && sed -i 's/tb_highlight *= *"bg:ansiyellow"/tb_highlight = "bg:ansired"/' "$ULTRATB_PATH"
 
+# create home directory for non-root users
+RUN mkdir -p /home/devuser
+
 # environment
 COPY container-rc/bashrc /root/.bashrc
 COPY container-rc/inputrc /root/.inputrc
 COPY container-rc/vimrc /root/.vimrc
-# IPython config
+COPY container-rc/bashrc /home/devuser/.bashrc
+COPY container-rc/inputrc /home/devuser/.inputrc
+COPY container-rc/vimrc /home/devuser/.vimrc
+
+# IPython config for both
 RUN set -eux; \
-    mkdir --parents /root/.ipython/profile_default;
+    mkdir --parents /root/.ipython/profile_default; \
+    mkdir --parents /home/devuser/.ipython/profile_default;
+
 COPY container-rc/ipython_config.py /root/.ipython/profile_default/ipython_config.py
+COPY container-rc/ipython_config.py /home/devuser/.ipython/profile_default/ipython_config.py
+
+# Make devuser home accessible to any UID
+RUN chmod -R 755 /home/devuser
 
 # django
 ENV DJANGO_SETTINGS_MODULE=core.settings

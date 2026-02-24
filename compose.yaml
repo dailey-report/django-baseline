@@ -1,30 +1,93 @@
 name: baseline
 
 services:
-  baseline-postgres:
-    image: "baseline-postgres"
-    # make sure pg is running before dependent services can run
-    healthcheck:
-      test: [ "CMD", "pg_isready", "--quiet", "--dbname", "baseline", "--username", "baseline" ]
-      timeout: 45s
-      interval: 10s
-      retries: 10
+  postgres:
+    image: postgres:18.1
     restart: always
-    environment:
-     # - POSTGRES_HOST_AUTH_METHOD=trust
-     - POSTGRES_DB=baseline
-     - POSTGRES_USER=baseline
-     - POSTGRES_PASSWORD=please-change-this-password
+    networks: [backend]
     volumes:
-      - postgres_data_baseline:/var/lib/postgresql/data/
+      - postgres_data_baseline:/var/lib/postgresql/data
+      - ./artifacts/postgres-init:/docker-entrypoint-initdb.d:ro
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-baseline}
+      POSTGRES_USER: ${POSTGRES_USER:-baseline}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+      TZ: UTC
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=256MB"
+      - "-c"
+      - "work_mem=16MB"
+      - "-c"
+      - "maintenance_work_mem=128MB"
+      - "-c"
+      - "effective_cache_size=1GB"
+      - "-c"
+      - "max_connections=100"
+      - "-c"
+      - "max_replication_slots=5"
+      - "-c"
+      - "checkpoint_timeout=10min"
+      - "-c"
+      - "max_wal_size=4GB"
+      - "-c"
+      - "max_wal_senders=5"
+      - "-c"
+      - "wal_compression=lz4"
+      - "-c"
+      - "synchronous_commit=on"
+      - "-c"
+      - "fsync=on"
+      - "-c"
+      - "full_page_writes=on"
+      - "-c"
+      - "log_line_prefix=%m [%p] %u@%d "
+      - "-c"
+      - "log_min_duration_statement=500ms"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-baseline} -d ${POSTGRES_DB:-baseline}"]
+      interval: 10s
+      timeout: 45s
+      retries: 10
 
   baseline:
     build: .
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-baseline}
+      POSTGRES_USER: ${POSTGRES_USER:-baseline}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_CONN_MAX_AGE: 60
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY must be set}
+      IS_DEV: ${IS_DEV:-false}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-127.0.0.1,localhost}
+      HOME: /home/devuser
+    user: "${CONTAINER_UID:-1000}:${CONTAINER_GID:-1000}"
     command: /opt/manage.py runserver 0.0.0.0:8000
+    networks: [backend, egress]
+    ports:
+      # only expose ports to loopback interface
+      - "127.0.0.1:8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
+      # app code
       - ./django_root:/opt
+    tty: true
+    stdin_open: true
     depends_on:
-      - baseline-postgres
+      postgres:
+        condition: service_healthy
 
 volumes:
   postgres_data_baseline:
+
+networks:
+  backend:
+    internal: true
+  egress:
+    internal: false

@@ -1,5 +1,7 @@
-# override is for sandbox only
+# sandbox only files
 compose.override.yaml
+.env
+*.env
 
 # file based logging
 logs/

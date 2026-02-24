@@ -10,7 +10,7 @@ name: baseline
 # it's good practice for services to listen on 0.0.0.0
 
 services:
-  baseline-postgres:
+  postgres:
     # this allows access from host
     ports:
       # only expose ports to loopback interface

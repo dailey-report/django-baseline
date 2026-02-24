@@ -7,10 +7,10 @@ Dockerfile uses python docker image (simple tag for debian): https://hub.docker.
 
 For these instructions, substitute 'baseline' with [your-project-name].
 
-1. Copy artifacts/postgres-Dockerfile to ../baseline-postgres/Dockerfile
 1. Copy artifacts/compose.override.yaml to compose.override.yaml
-1. Edit the copied compose files and replace 'baseline' with [your-project-name]
-1. Build in ../baseline-postgres/: `docker build --tag baseline-postgres .`
+1. Edit both compose files and replace 'baseline' with [your-project-name]
+1. Create environment file `cp artifacts/env.example .env`
+1. Edit .env with your values (passwords, paths, etc.)
 1. Build in ../baseline/: `docker build --tag baseline .`
 1. `mkdir django_root`
 1. Run a container shell: `docker run --network="host" --volume ./django_root:/opt --interactive --tty baseline bash`
@@ -18,8 +18,14 @@ For these instructions, substitute 'baseline' with [your-project-name].
 1. Exit container shell
 1. Configure django_root/core/settings.py, (merge artifacts/settings.py into core/settings.py,
 remember to use [your-project-name] instead of 'baseline')
-1. Use compose to build and run this container, and the postgres container: `docker compose up`
-1. Shell into container: `docker compose exec baseline bash`
+1. Use compose to build and run all containers:
+```bash
+./run.sh up
+```
+1. Shell into main container:
+```bash
+./run.sh exec baseline bash
+```
 
 # Notes
 

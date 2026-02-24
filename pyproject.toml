@@ -13,6 +13,7 @@ exclude = '''
 profile = "black"
 line_length = 94
 multi_line_output = 3
+lines_after_imports = 2
 # skip_gitignore == read gitignore and skip listed files
 skip_gitignore = true
 # include vomit
