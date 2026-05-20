@@ -1,7 +1,9 @@
 # sandbox only files
-compose.override.yaml
+.claude
 .env
 *.env
+CLAUDE.md
+compose.override.yaml
 
 # file based logging
 logs/

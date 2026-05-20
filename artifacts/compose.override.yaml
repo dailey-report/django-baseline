@@ -16,10 +16,13 @@ services:
       # only expose ports to loopback interface
       - 127.0.0.1:5432:5432
   baseline:
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./django_root:/opt/app
     ports:
       # only expose ports to loopback interface
       - 127.0.0.1:8000:8000
     environment:
-      - PYTHONDONTWRITEBYTECODE=1
-      - IS_DEV=true
-      - ALLOWED_HOSTS=0.0.0.0,127.0.0.1
+      PYTHONDONTWRITEBYTECODE: "1"
+    tty: true
+    stdin_open: true

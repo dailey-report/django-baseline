@@ -5,27 +5,29 @@ Baseline Django for Rapid Start
 
 Dockerfile uses python docker image (simple tag for debian): https://hub.docker.com/_/python/
 
-For these instructions, substitute 'baseline' with [your-project-name].
+For these instructions, substitute 'baseline' with [your-project-name].  Clone
+into directory [your-project-name].  Substitute [your-project-name] for
+directories referenced as baseline/ in these instructions.
 
-1. Copy artifacts/compose.override.yaml to compose.override.yaml
+1. New project as working directory: `cd baseline/`
+1. Copy compose override: `cp artifacts/compose.override.yaml compose.override.yaml`
 1. Edit both compose files and replace 'baseline' with [your-project-name]
-1. Create environment file `cp artifacts/env.example .env`
+1. Create environment file: `cp artifacts/env.example .env`
 1. Edit .env with your values (passwords, paths, etc.)
-1. Build in ../baseline/: `docker build --tag baseline .`
+1. Set container UID/GID to match your user: `echo "CONTAINER_UID=$(id -u)" >> .env; echo "CONTAINER_GID=$(id -g)" >> .env`
 1. `mkdir django_root`
-1. Run a container shell: `docker run --network="host" --volume ./django_root:/opt --interactive --tty baseline bash`
-1. Create project using [MikeD Directory Structure](#miked-directory-structure)
+1. Build in baseline/: `docker compose build`
+1. Run a container shell: `docker compose run baseline bash`
+1. Create project using [MikeD Directory Structure](#miked-directory-structure): `django-admin startproject core . && django-admin startapp baseline`
 1. Exit container shell
 1. Configure django_root/core/settings.py, (merge artifacts/settings.py into core/settings.py,
 remember to use [your-project-name] instead of 'baseline')
-1. Use compose to build and run all containers:
-```bash
-./run.sh up
-```
-1. Shell into main container:
-```bash
-./run.sh exec baseline bash
-```
+1. Use compose to build and run all containers: `docker compose up`
+1. Shell into main container: `docker compose exec baseline bash`
+
+Migrations run automatically on container start. If `DJANGO_SUPERUSER_EMAIL` and
+`DJANGO_SUPERUSER_PASSWORD` are set in `.env`, a superuser is created automatically on
+first start.
 
 # Notes
 
@@ -33,11 +35,10 @@ Be aware, .gitignore, .flake8, and pyproject.toml are included in the repo, so t
 to be edited for the new project.
 
 ## MikeD Directory Structure
-Substitute 'baseline' with [new-project-name] in these instructions. In container /opt/:
+Substitute 'baseline' with [new-project-name] in these instructions. In container /opt/app:
 ```bash
 django-admin startproject core .
 django-admin startapp baseline
-mkdir logs
 ```
 
 now repo structure on host is
@@ -130,7 +131,7 @@ extensions = [
 ]
 
 # project path
-sys.path.insert(0, os.path.abspath('/opt/'))
+sys.path.insert(0, os.path.abspath('/opt/app'))
 
 #os.environ['DJANGO_SETTINGS_MODULE'] = 'core.settings'
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
