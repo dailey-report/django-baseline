@@ -1,0 +1,3 @@
+add instructions / artifacts for core/management/commands/create_superuser_prn.py
+  we want to keep baseline free of initialized django project and files,
+  but make this functionality easy to add.
