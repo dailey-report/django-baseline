@@ -5,9 +5,10 @@
 # django
 Django
 djangorestframework
+drf-spectacular
+drf-standardized-errors
 django-cors-headers
 django-environ
-drf-standardized-errors
 # postgres for python with django
 psycopg
 # REST implementation of Django authentication system
@@ -15,6 +16,13 @@ psycopg
 
 # operational libraries
 requests
+# production WSGI server
+gunicorn
+# static files under gunicorn; staticfiles only serves them under runserver
+whitenoise
+# background processing; rabbitmq broker, redis result backend and cache
+celery
+redis
 
 # development tools
 django-extensions

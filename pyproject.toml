@@ -1,30 +1,47 @@
-[tool.black]
-# be sure to match rules in .flake8 with these!
+[tool.ruff]
 line-length = 94
-target-versions = ["py313"]
-skip-string-normalization = true
-exclude = '''
-/(
-  | migrations
-)/
-'''
+target-version = "py314"
+extend-exclude = ["container-rc", "migrations"]
+src = ["django_root"]
 
-[tool.isort]
-profile = "black"
-line_length = 94
-multi_line_output = 3
-lines_after_imports = 2
-# skip_gitignore == read gitignore and skip listed files
-skip_gitignore = true
-# include vomit
-include_trailing_comma = true
-src_paths = ["django_root"]
-known_django = "django"
-sections = [
-    'FUTURE',
-    'STDLIB',
-    'DJANGO',
-    'THIRDPARTY',
-    'FIRSTPARTY',
-    'LOCALFOLDER'
+[tool.ruff.format]
+quote-style = "single"
+# layout depends on line length alone, never on a comma someone left behind
+skip-magic-trailing-comma = true
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "Q"]
+ignore = [
+  # if it's a '#' comment, i do what i want...
+  "E265",
+  "E266",
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+
+[tool.ruff.lint.flake8-quotes]
+inline-quotes = "single"
+multiline-quotes = "double"
+docstring-quotes = "double"
+
+[tool.ruff.lint.isort]
+lines-after-imports = 2
+split-on-trailing-comma = false
+section-order = [
+  "future",
+  "standard-library",
+  "django",
+  "third-party",
+  "first-party",
+  "local-folder",
+]
+
+[tool.ruff.lint.isort.sections]
+django = ["django"]
+
+[tool.pyright]
+include = ["django_root"]
+# dependencies live in the container, not on the host where the editor runs
+reportMissingImports = false
+extraPaths = ["django_root"]

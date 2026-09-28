@@ -2,7 +2,6 @@
 .claude
 .env
 *.env
-CLAUDE.md
 compose.override.yaml
 
 # file based logging
@@ -10,3 +9,10 @@ logs/
 
 # binary artifacts of code coverage tool
 .coverage
+
+# bytecode from host-run tools
+__pycache__/
+.ruff_cache/
+
+# collectstatic output
+django_root/staticfiles/

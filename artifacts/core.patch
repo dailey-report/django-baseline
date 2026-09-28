@@ -1,0 +1,238 @@
+--- core/settings.py
++++ core/settings.py
+@@ -13,4 +13,14 @@
+ from pathlib import Path
+ 
++import environ
++
++
++environment = environ.Env(
++    DEBUG=(bool, False),
++    IS_DEV=(bool, False),
++    ALLOWED_HOSTS=(list, []),
++    CORS_EXTRA_ORIGINS=(list, []),
++)
++
+ # Build paths inside the project like this: BASE_DIR / 'subdir'.
+ BASE_DIR = Path(__file__).resolve().parent.parent
+@@ -24,7 +34,14 @@
+ 
+ # SECURITY WARNING: don't run with debug turned on in production!
+-DEBUG = True
++IS_DEV = environment('IS_DEV')
++if IS_DEV:
++    DEBUG = True
++else:
++    DEBUG = environment('DEBUG')
+ 
+-ALLOWED_HOSTS = []
++ALLOWED_HOSTS = environment('ALLOWED_HOSTS')
++
++# generated SECRET_KEY above is the fallback for a bare checkout; compose requires the env
++SECRET_KEY = environment('DJANGO_SECRET_KEY', default=SECRET_KEY)
+ 
+ 
+@@ -38,8 +55,18 @@
+     'django.contrib.messages',
+     'django.contrib.staticfiles',
++    'rest_framework',
++    'drf_spectacular',
++    'drf_standardized_errors',
++    'corsheaders',
++    'core',
+ ]
+ 
+ MIDDLEWARE = [
++    # first, so every log line produced downstream carries the correlation id
++    'core.middleware.RequestIdMiddleware',
+     'django.middleware.security.SecurityMiddleware',
++    # after SecurityMiddleware, before everything else
++    'whitenoise.middleware.WhiteNoiseMiddleware',
++    'corsheaders.middleware.CorsMiddleware',
+     'django.contrib.sessions.middleware.SessionMiddleware',
+     'django.middleware.common.CommonMiddleware',
+@@ -75,6 +102,27 @@
+ DATABASES = {
+     'default': {
+-        'ENGINE': 'django.db.backends.sqlite3',
+-        'NAME': BASE_DIR / 'db.sqlite3',
++        'ENGINE': 'django.db.backends.postgresql',
++        'NAME': environment('POSTGRES_DB', default='baseline'),
++        'USER': environment('POSTGRES_USER', default='baseline'),
++        'PASSWORD': environment('POSTGRES_PASSWORD', default=''),
++        'HOST': environment('POSTGRES_HOST', default='localhost'),
++        'PORT': environment('POSTGRES_PORT', default='5432'),
++        'CONN_MAX_AGE': environment('POSTGRES_CONN_MAX_AGE', cast=int, default=60),
++        'OPTIONS': {
++            # Enforce sane defaults; adjust if you have a reason
++            'connect_timeout': 5,
++            # Example: set search_path if you use multiple schemas
++            # 'options': '-c search_path=baseline,public',
++        },
++    }
++}
++
++
++# Cache
++
++CACHES = {
++    'default': {
++        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
++        'LOCATION': environment('REDIS_URL', default='redis://redis:6379/0'),
+     }
+ }
+@@ -116,4 +164,12 @@
+ 
+ STATIC_URL = 'static/'
++STATIC_ROOT = BASE_DIR / 'staticfiles'
++
++STORAGES = {
++    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
++    # not the Manifest variant: it refuses names missing from staticfiles.json, so tests
++    # rendering admin pages would fail unless collectstatic had run first
++    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage'},
++}
+ 
+ 
+@@ -126,2 +182,129 @@
+     },
+ }
++
++
++# Logging
++#
++# Development logs to console and a file per service. Production logs JSON to console only:
++# the container runtime is the collector, and a file inside a container is invisible to it.
++#
++# Identifiers, not identities: log a user by primary key at INFO and above; the email address
++# belongs at DEBUG only, since INFO-level logs are the ones shipped and retained.
++
++# this can be parsed with dateutil.parser.isoparse()
++TIMESTAMP = '{asctime}.{msecs:03.0f}'
++FORMAT = TIMESTAMP + ' [{levelname}] {name}:{lineno} [{request_id}] {message}'
++
++# one file per service: they share /opt/app/logs and a single path interleaves them
++LOG_FILE = environment('LOG_FILE', default='/opt/app/logs/baseline.log')
++
++_APP_LOG_LEVEL = 'DEBUG' if IS_DEV else 'INFO'
++_LOG_HANDLERS = ['console'] + (['file'] if IS_DEV else [])
++
++LOGGING = {
++    'version': 1,
++    'disable_existing_loggers': False,
++    'filters': {
++        'request_id': {'()': 'core.logging.RequestIdFilter'},
++    },
++    'formatters': {
++        'verbose': {
++            'format': FORMAT,
++            'datefmt': '%Y-%m-%dT%H:%M:%S',
++            'style': '{',
++        },
++        'json': {'()': 'core.logging.JsonFormatter'},
++    },
++    'handlers': {
++        'console': {
++            'class': 'logging.StreamHandler',
++            'formatter': 'verbose' if IS_DEV else 'json',
++            'filters': ['request_id'],
++        },
++        'file': {
++            'level': 'DEBUG',
++            'class': 'logging.FileHandler',
++            'formatter': 'verbose',
++            'filters': ['request_id'],
++            'filename': LOG_FILE,
++        },
++    },
++    'loggers': {
++        'django': {
++            'handlers': _LOG_HANDLERS,
++            'level': 'WARNING',
++            'propagate': True,
++        },
++        # define loggers per app
++        **{
++            app: {
++                'handlers': _LOG_HANDLERS,
++                'level': _APP_LOG_LEVEL,
++                'propagate': True,
++            }
++            for app in ('core',)
++        },
++    },
++}
++
++# FileHandler opens its file on construction, so it must not exist outside development
++if not IS_DEV:
++    del LOGGING['handlers']['file']
++
++TEST_RUNNER = 'core.runner.QuietTestRunner'
++
++
++# REST API (Django REST Framework + drf-spectacular + drf-standardized-errors)
++
++REST_FRAMEWORK = {
++    'EXCEPTION_HANDLER': 'drf_standardized_errors.handler.exception_handler',
++    'DEFAULT_SCHEMA_CLASS': 'drf_standardized_errors.openapi.AutoSchema',
++    'DEFAULT_PERMISSION_CLASSES': [
++        'rest_framework.permissions.IsAuthenticated',
++    ],
++}
++
++SPECTACULAR_SETTINGS = {
++    'TITLE': 'baseline API',
++    'VERSION': 'v1',
++    'SERVE_INCLUDE_SCHEMA': False,
++    'ENUM_NAME_OVERRIDES': {
++        name: f'drf_standardized_errors.openapi_serializers.{name}.choices'
++        for name in (
++            'ValidationErrorEnum',
++            'ClientErrorEnum',
++            'ServerErrorEnum',
++            'ErrorCode401Enum',
++            'ErrorCode403Enum',
++            'ErrorCode404Enum',
++            'ErrorCode405Enum',
++            'ErrorCode406Enum',
++            'ErrorCode415Enum',
++            'ErrorCode429Enum',
++            'ErrorCode500Enum',
++        )
++    },
++    'POSTPROCESSING_HOOKS': [
++        'drf_standardized_errors.openapi_hooks.postprocess_schema_enums'
++    ],
++}
++
++
++# CORS
++# production origins come from CORS_EXTRA_ORIGINS
++
++CORS_ALLOWED_ORIGINS = [origin for origin in environment('CORS_EXTRA_ORIGINS') if origin]
++
++
++# Celery
++
++CELERY_BROKER_URL = environment('CELERY_BROKER_URL', default='amqp://rabbitmq:5672//')
++CELERY_RESULT_BACKEND = environment('CELERY_RESULT_BACKEND', default='redis://redis:6379/1')
++CELERY_TASK_SERIALIZER = 'json'
++CELERY_ACCEPT_CONTENT = ['json']
++CELERY_RESULT_SERIALIZER = 'json'
++CELERY_TIMEZONE = TIME_ZONE
++# a worker killed mid-task (deploy, OOM) leaves the work to be retried, not dropped
++CELERY_TASK_ACKS_LATE = True
++CELERY_WORKER_PREFETCH_MULTIPLIER = 1
++CELERY_RESULT_EXPIRES = 24 * 60 * 60
+--- core/urls.py
++++ core/urls.py
+@@ -18,5 +18,9 @@
+ from django.urls import path
+ 
++from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
++
+ urlpatterns = [
+     path('admin/', admin.site.urls),
++    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
++    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+ ]

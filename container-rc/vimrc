@@ -151,10 +151,6 @@ map <F2> :s/"/'/g<CR>:noh<CR>
 map <F3> :s/'/"/g<CR>:noh<CR>
 " force redraw of screen (b/c i think terminator is re-mapping CTRL-L)
 map <F5> :redraw!<CR>
-" run isort check on current file
-nmap <F6> :!isort --check --diff %<CR>
-" toggle syntastic mode active / passive
-map <F9> :SyntasticToggleMode<CR>
 " replace current word with unnamed paste register
 nmap <silent> cp "_cw<C-R>"<Esc>
 "split navigations
@@ -167,10 +163,5 @@ nnoremap <C-H> <C-W><C-H>
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Tools and Plugins
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" Python
-let g:syntastic_python_checkers = ['flake8']
-let g:flake8_show_in_gutter = 1
-let g:flake8_quickfix_height = 7
-
 " ## ctags ##
 set tags=./tags,tags;~

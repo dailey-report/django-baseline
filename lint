@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# whole-tree check; the same hooks run at commit and in CI.
+set -euo pipefail
+cd "$(dirname "$(readlink --canonicalize "$0")")"
+# --all-files would skip untracked files, and django_root starts out untracked
+git ls-files -z --cached --others --exclude-standard | xargs --null pre-commit run --files

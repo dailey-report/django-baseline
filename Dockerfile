@@ -1,4 +1,4 @@
-FROM python:3.15.0b3-trixie
+FROM python:3-trixie
 
 WORKDIR /opt/app
 
@@ -8,8 +8,7 @@ ENV IS_DEV=false
 
 # postgres-python with django
 ARG PPG_DEPS="python3-dev libpq-dev"
-# packages for postgres-python with django, GraphViz model visualization (prerequisite of
-# pygraphviz installed by pip from requirements-dev.outline)
+# GraphViz model visualization (prerequisite of pygraphviz in requirements.outline)
 ARG GRAPH_DEPS="graphviz graphviz-dev"
 ARG CONTAINER_UID
 ARG CONTAINER_GID
@@ -18,6 +17,7 @@ RUN set -eux; \
     apt update; \
     apt upgrade --yes; \
     apt install --yes --no-install-recommends \
+        vim \
         $PPG_DEPS \
         $GRAPH_DEPS; \
     rm -rf /var/lib/apt/lists/*

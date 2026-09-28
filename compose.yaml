@@ -1,9 +1,49 @@
 name: baseline
 
+# unbounded json-file logs fill the disk and take the database down with them
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+x-app-build: &app-build
+  context: .
+  args:
+    CONTAINER_UID: ${CONTAINER_UID:-1000}
+    CONTAINER_GID: ${CONTAINER_GID:-1000}
+
+# shared by every service running the app image; a variable missing from one drifts silently
+x-app-environment: &app-environment
+  IS_DEV: ${IS_DEV:-false}
+  DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY must be set}
+  POSTGRES_DB: ${POSTGRES_DB:-baseline}
+  POSTGRES_USER: ${POSTGRES_USER:-baseline}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+  POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+  POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+  POSTGRES_CONN_MAX_AGE: ${POSTGRES_CONN_MAX_AGE:-60}
+  ALLOWED_HOSTS: ${ALLOWED_HOSTS:-0.0.0.0,127.0.0.1,localhost}
+  CORS_EXTRA_ORIGINS: ${CORS_EXTRA_ORIGINS:-}
+  CELERY_BROKER_URL: amqp://${RABBITMQ_USER:-baseline}:${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD must be set}@rabbitmq:5672//
+  # empty password sends no AUTH, so one URL shape serves both cases
+  CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-}@redis:6379/1
+  REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379/0
+  HOME: /home/devuser
+
+x-app-depends: &app-depends
+  postgres:
+    condition: service_healthy
+  rabbitmq:
+    condition: service_healthy
+  redis:
+    condition: service_healthy
+
 services:
   postgres:
-    image: postgres:18.1
+    image: postgres:18
     restart: unless-stopped
+    logging: *default-logging
     networks: [backend]
     volumes:
       - postgres_data_baseline:/var/lib/postgresql/data
@@ -38,25 +78,63 @@ services:
       timeout: 45s
       retries: 10
 
+  rabbitmq:
+    image: rabbitmq:4.2-management
+    # node name derives from hostname; a random one orphans the data volume on recreate
+    hostname: rabbitmq
+    restart: unless-stopped
+    logging: *default-logging
+    networks: [backend]
+    volumes:
+      - rabbitmq_data_baseline:/var/lib/rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-baseline}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?RABBITMQ_PASSWORD must be set}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "--quiet", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
+  # celery results and cache only; nothing here is durable
+  redis:
+    image: redis:8.4
+    restart: unless-stopped
+    logging: *default-logging
+    networks: [backend]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    command:
+      - "redis-server"
+      # set before redis is reachable from any other host: open redis is remote code execution
+      - "--requirepass"
+      - "${REDIS_PASSWORD:-}"
+      - "--save"
+      - ""
+      - "--appendonly"
+      - "no"
+      - "--maxmemory"
+      - "256mb"
+      - "--maxmemory-policy"
+      - "noeviction"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a \"$$REDIS_PASSWORD\" ping | grep --quiet PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   baseline:
     image: baseline:latest
-    build:
-      context: .
-      args:
-        CONTAINER_UID: ${CONTAINER_UID:-1000}
-        CONTAINER_GID: ${CONTAINER_GID:-1000}
+    build: *app-build
+    restart: unless-stopped
+    logging: *default-logging
     environment:
-      IS_DEV: ${IS_DEV:-false}
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY must be set}
-      POSTGRES_DB: ${POSTGRES_DB:-baseline}
-      POSTGRES_USER: ${POSTGRES_USER:-baseline}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_CONN_MAX_AGE: ${POSTGRES_CONN_MAX_AGE:-60}
-      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-0.0.0.0,127.0.0.1,localhost}
-      CORS_EXTRA_ORIGINS: ${CORS_EXTRA_ORIGINS:-}
-      HOME: /home/devuser
+      <<: *app-environment
+      RUN_MIGRATIONS: "true"
+      DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL:-}
+      DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD:-}
+      LOG_FILE: /opt/app/logs/baseline.log
     user: "${CONTAINER_UID:-1000}:${CONTAINER_GID:-1000}"
     networks: [backend, egress]
     command:
@@ -66,12 +144,53 @@ services:
       - "0.0.0.0:8000"
       - "--workers"
       - "4"
-    depends_on:
-      postgres:
-        condition: service_healthy
+    depends_on: *app-depends
+
+  celery-worker:
+    image: baseline:latest
+    build: *app-build
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      <<: *app-environment
+      LOG_FILE: /opt/app/logs/celery-worker.log
+    user: "${CONTAINER_UID:-1000}:${CONTAINER_GID:-1000}"
+    networks: [backend, egress]
+    command:
+      - "celery"
+      - "--app"
+      - "core"
+      - "worker"
+      - "--loglevel"
+      - "INFO"
+    depends_on: *app-depends
+
+  # must be a singleton: two schedulers fire every periodic task twice
+  celery-beat:
+    image: baseline:latest
+    build: *app-build
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      <<: *app-environment
+      LOG_FILE: /opt/app/logs/celery-beat.log
+    user: "${CONTAINER_UID:-1000}:${CONTAINER_GID:-1000}"
+    networks: [backend]
+    command:
+      - "celery"
+      - "--app"
+      - "core"
+      - "beat"
+      - "--loglevel"
+      - "INFO"
+      # non-root uid can only write its schedule under HOME
+      - "--schedule"
+      - "/home/devuser/celerybeat-schedule"
+    depends_on: *app-depends
 
 volumes:
   postgres_data_baseline:
+  rabbitmq_data_baseline:
 
 networks:
   backend:

@@ -1,28 +1,40 @@
 name: baseline
 
-# services are prefixed with [PROJECT_NAME]_ where PROJECT_NAME = $PWD
-# services can communicate with each other using hostname == [PROJECT_NAME]_[SERVICE]
-#   examples: baseline_baseline, baseline_baseline-postgres, baseline_baseline-postgres:5432
-#
-# default network is [PROJECT_NAME]_default
-# images have access to internet
-# accessing images from host requires explicit port opening
-# it's good practice for services to listen on 0.0.0.0
+# dev overrides: runserver, source mount, loopback-only port exposure.
+# docker publishes no ports for a container on internal networks only, hence egress.
 
 services:
   postgres:
-    # this allows access from host
+    networks: [backend, egress]
     ports:
-      # only expose ports to loopback interface
-      - 127.0.0.1:5432:5432
+      - "127.0.0.1:5432:5432"
+
+  rabbitmq:
+    networks: [backend, egress]
+    ports:
+      - "127.0.0.1:15672:15672"   # management UI
+
   baseline:
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
       - ./django_root:/opt/app
     ports:
-      # only expose ports to loopback interface
-      - 127.0.0.1:8000:8000
+      - "127.0.0.1:8000:8000"
     environment:
       PYTHONDONTWRITEBYTECODE: "1"
     tty: true
     stdin_open: true
+
+  # same mounted code as the app, or workers run what was baked into the image.
+  # celery does not autoreload: restart workers after changing task code.
+  celery-worker:
+    volumes:
+      - ./django_root:/opt/app
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"
+
+  celery-beat:
+    volumes:
+      - ./django_root:/opt/app
+    environment:
+      PYTHONDONTWRITEBYTECODE: "1"

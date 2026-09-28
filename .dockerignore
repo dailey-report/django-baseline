@@ -1,0 +1,3 @@
+django_root/logs/
+django_root/staticfiles/
+**/__pycache__/
