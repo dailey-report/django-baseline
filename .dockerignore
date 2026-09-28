@@ -1,3 +1,4 @@
 django_root/logs/
 django_root/staticfiles/
 **/__pycache__/
+django_root/docs/build/

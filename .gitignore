@@ -16,3 +16,7 @@ __pycache__/
 
 # collectstatic output
 django_root/staticfiles/
+
+# sphinx output (see artifacts/SPHINX-DOCS.md)
+django_root/docs/build/
+django_root/docs/source/api/

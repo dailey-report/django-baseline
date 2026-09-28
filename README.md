@@ -112,25 +112,4 @@ Context stays at 2 lines: the generated SECRET_KEY is random, so no hunk may rea
 
 ## Generate Documentation with Sphinx
 
-Execute these instructions within a container shell.
-
-Install required packages:
-```bash
-python3 -m pip install sphinx sphinx-autobuild sphinx_rtd_theme
-```
-
-In django_root, create docs dir and configure Sphinx from `artifacts/example-sphinx-conf.py`:
-```bash
-mkdir --parents docs/source
-vi docs/source/conf.py
-```
-
-In docs dir, Autogenerate .rst files:
-```bash
-sphinx-apidoc -o source ../django_root/
-```
-
-Add modules to toctree:
-```bash
-vi source/index.rst
-```
+See [artifacts/SPHINX-DOCS.md](artifacts/SPHINX-DOCS.md).
