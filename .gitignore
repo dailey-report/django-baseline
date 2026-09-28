@@ -2,7 +2,7 @@
 .claude
 .env
 *.env
-compose.override.yaml
+/compose.override.yaml
 
 # file based logging
 logs/
